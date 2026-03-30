@@ -73,7 +73,7 @@
 				<span class="logo-text">PETITS EMPRUNTS<br />ENTRE AMIS</span>
 			</a>
 			<div class="user-area">
-				<span class="user-email">{session.email}</span>
+				<a href="/app/profile" class="user-link">{session.username || session.email}</a>
 				<button class="btn-logout" on:click={handleLogout}>Se déconnecter</button>
 			</div>
 		</div>
@@ -276,10 +276,15 @@
 		gap: 1rem;
 	}
 
-	.user-email {
+	.user-link {
 		font-size: 0.875rem;
 		color: #666;
+		text-decoration: none;
+		font-weight: 600;
+		transition: color 0.2s;
 	}
+
+	.user-link:hover { color: #e87722; }
 
 	.btn-logout {
 		padding: 0.4rem 1rem;
