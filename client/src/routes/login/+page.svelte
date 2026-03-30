@@ -1,6 +1,27 @@
 <script>
+	import { goto } from '$app/navigation';
+	import { api } from '$lib/api.js';
+	import { auth } from '$lib/auth.js';
+
 	let email = '';
 	let password = '';
+	let errorMessage = '';
+	let loading = false;
+
+	async function handleSubmit() {
+		errorMessage = '';
+		loading = true;
+
+		const res = await api.post('/auth/login', { email, password });
+		loading = false;
+
+		if (res.ok) {
+			auth.login(res.data.token, res.data.email);
+			goto('/app');
+		} else {
+			errorMessage = res.message || 'Une erreur est survenue.';
+		}
+	}
 </script>
 
 <div class="page">
@@ -11,7 +32,7 @@
 		<h1>Se connecter</h1>
 		<p class="subtitle">Content de vous revoir !</p>
 
-		<form>
+		<form on:submit|preventDefault={handleSubmit}>
 			<div class="field">
 				<label for="email">Adresse email</label>
 				<input
@@ -36,8 +57,12 @@
 				/>
 			</div>
 
-			<button type="submit" class="btn-primary" disabled>
-				Se connecter (bientôt disponible)
+			{#if errorMessage}
+				<p class="error">{errorMessage}</p>
+			{/if}
+
+			<button type="submit" class="btn-primary" disabled={loading}>
+				{loading ? 'Connexion…' : 'Se connecter'}
 			</button>
 		</form>
 
@@ -94,9 +119,7 @@
 		margin-bottom: 2rem;
 	}
 
-	.field {
-		margin-bottom: 1.25rem;
-	}
+	.field { margin-bottom: 1.25rem; }
 
 	label {
 		display: block;
@@ -122,6 +145,16 @@
 		background: white;
 	}
 
+	.error {
+		background: #fff0ee;
+		color: #c0392b;
+		border: 1px solid #f5c6c0;
+		border-radius: 8px;
+		padding: 0.6rem 1rem;
+		font-size: 0.9rem;
+		margin-bottom: 1rem;
+	}
+
 	.btn-primary {
 		width: 100%;
 		padding: 0.875rem;
@@ -136,8 +169,10 @@
 		margin-top: 0.5rem;
 	}
 
+	.btn-primary:hover:not(:disabled) { background: #cf6618; }
+
 	.btn-primary:disabled {
-		opacity: 0.5;
+		opacity: 0.7;
 		cursor: not-allowed;
 	}
 

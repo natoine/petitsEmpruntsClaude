@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { sendVerificationEmail } from '../services/email.js';
 
@@ -68,5 +69,36 @@ export async function verifyEmail(req, res) {
     data: null,
     error: null,
     message: 'Email confirmé ! Vous pouvez maintenant vous connecter.',
+  });
+}
+
+export async function login(req, res) {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ data: null, error: 'MISSING_FIELDS', message: 'Email et mot de passe requis.' });
+  }
+
+  const user = await User.findOne({ email });
+  const passwordMatch = user && await bcrypt.compare(password, user.passwordHash);
+
+  if (!user || !passwordMatch) {
+    return res.status(401).json({ data: null, error: 'INVALID_CREDENTIALS', message: 'Email ou mot de passe incorrect.' });
+  }
+
+  if (!user.isVerified) {
+    return res.status(403).json({ data: null, error: 'EMAIL_NOT_VERIFIED', message: 'Veuillez confirmer votre email avant de vous connecter.' });
+  }
+
+  const token = jwt.sign(
+    { userId: user._id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  return res.status(200).json({
+    data: { token, email: user.email },
+    error: null,
+    message: 'Connexion réussie.',
   });
 }
