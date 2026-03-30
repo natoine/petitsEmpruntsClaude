@@ -10,6 +10,10 @@
 	let to = '';
 	let submitting = false;
 	let errorMessage = '';
+	let activeTab = 'active';
+
+	$: activeLoans = loans.filter((l) => !l.returnedAt);
+	$: doneLoans = loans.filter((l) => l.returnedAt);
 
 	onMount(async () => {
 		const unsubscribe = auth.subscribe((s) => (session = s));
@@ -35,6 +39,13 @@
 			to = '';
 		} else {
 			errorMessage = res.message || 'Une erreur est survenue.';
+		}
+	}
+
+	async function handleReturn(id) {
+		const res = await api.patch(`/loans/${id}/return`, {});
+		if (res.ok) {
+			loans = loans.map((l) => (l._id === id ? res.data : l));
 		}
 	}
 
@@ -95,32 +106,84 @@
 			{/if}
 		</div>
 
-		<!-- Tableau des prêts -->
+		<!-- Onglets + tableaux -->
 		<div class="card">
-			<h2>Mes prêts en cours <span class="count">{loans.length}</span></h2>
-			{#if loans.length === 0}
-				<p class="empty">Aucun prêt enregistré pour l'instant.</p>
-			{:else}
-				<div class="table-wrapper">
-					<table>
-						<thead>
-							<tr>
-								<th>Date</th>
-								<th>Quoi</th>
-								<th>À qui</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each loans as loan (loan._id)}
+			<div class="tabs">
+				<button
+					class="tab"
+					class:active={activeTab === 'active'}
+					on:click={() => (activeTab = 'active')}
+				>
+					Prêts en cours <span class="badge">{activeLoans.length}</span>
+				</button>
+				<button
+					class="tab"
+					class:active={activeTab === 'done'}
+					on:click={() => (activeTab = 'done')}
+				>
+					Prêts terminés <span class="badge">{doneLoans.length}</span>
+				</button>
+			</div>
+
+			{#if activeTab === 'active'}
+				{#if activeLoans.length === 0}
+					<p class="empty">Aucun prêt en cours.</p>
+				{:else}
+					<div class="table-wrapper">
+						<table>
+							<thead>
 								<tr>
-									<td class="date">{formatDate(loan.createdAt)}</td>
-									<td class="what">{loan.what}</td>
-									<td class="to">{loan.to}</td>
+									<th>Date</th>
+									<th>Quoi</th>
+									<th>À qui</th>
+									<th></th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{#each activeLoans as loan (loan._id)}
+									<tr>
+										<td class="date">{formatDate(loan.createdAt)}</td>
+										<td class="what">{loan.what}</td>
+										<td class="to">{loan.to}</td>
+										<td class="action">
+											<button class="btn-return" on:click={() => handleReturn(loan._id)}>
+												Je l'ai récupéré
+											</button>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{/if}
+
+			{:else}
+				{#if doneLoans.length === 0}
+					<p class="empty">Aucun prêt terminé pour l'instant.</p>
+				{:else}
+					<div class="table-wrapper">
+						<table>
+							<thead>
+								<tr>
+									<th>Date de prêt</th>
+									<th>Quoi</th>
+									<th>À qui</th>
+									<th>Date de rendu</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each doneLoans as loan (loan._id)}
+									<tr>
+										<td class="date">{formatDate(loan.createdAt)}</td>
+										<td class="what">{loan.what}</td>
+										<td class="to">{loan.to}</td>
+										<td class="date">{formatDate(loan.returnedAt)}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{/if}
 			{/if}
 		</div>
 	</main>
@@ -225,19 +288,6 @@
 		font-weight: 700;
 		color: #1a1a1a;
 		margin-bottom: 1.25rem;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.count {
-		background: #fdf6ee;
-		color: #e87722;
-		font-size: 0.8rem;
-		font-weight: 700;
-		padding: 0.1rem 0.5rem;
-		border-radius: 20px;
-		border: 1px solid #f0e0cc;
 	}
 
 	/* ── Loan form ── */
@@ -298,6 +348,53 @@
 		font-size: 0.9rem;
 	}
 
+	/* ── Tabs ── */
+	.tabs {
+		display: flex;
+		gap: 0;
+		border-bottom: 2px solid #f0e0cc;
+		margin-bottom: 1.25rem;
+	}
+
+	.tab {
+		padding: 0.6rem 1.25rem;
+		background: none;
+		border: none;
+		border-bottom: 2px solid transparent;
+		margin-bottom: -2px;
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: #aaa;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		transition: color 0.15s;
+	}
+
+	.tab:hover { color: #e87722; }
+
+	.tab.active {
+		color: #e87722;
+		border-bottom-color: #e87722;
+	}
+
+	.badge {
+		background: #fdf6ee;
+		color: #e87722;
+		font-size: 0.75rem;
+		font-weight: 700;
+		padding: 0.1rem 0.45rem;
+		border-radius: 20px;
+		border: 1px solid #f0e0cc;
+	}
+
+	.tab.active .badge {
+		background: #e87722;
+		color: white;
+		border-color: #e87722;
+	}
+
 	/* ── Table ── */
 	.empty {
 		color: #aaa;
@@ -325,9 +422,9 @@
 		border-bottom: 2px solid #f0e0cc;
 	}
 
-	tbody tr:hover {
-		background: #fdf6ee;
-	}
+	thead th:last-child { text-align: right; }
+
+	tbody tr:hover { background: #fdf6ee; }
 
 	tbody td {
 		padding: 0.75rem;
@@ -336,9 +433,7 @@
 		vertical-align: middle;
 	}
 
-	tbody tr:last-child td {
-		border-bottom: none;
-	}
+	tbody tr:last-child td { border-bottom: none; }
 
 	td.date {
 		white-space: nowrap;
@@ -350,4 +445,25 @@
 	td.what { font-weight: 600; }
 
 	td.to { color: #666; }
+
+	td.action { text-align: right; }
+
+	.btn-return {
+		padding: 0.35rem 0.85rem;
+		background: transparent;
+		border: 1.5px solid #d0e8d0;
+		border-radius: 50px;
+		color: #4a9a5a;
+		font-size: 0.8rem;
+		font-weight: 600;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: all 0.2s;
+	}
+
+	.btn-return:hover {
+		background: #4a9a5a;
+		border-color: #4a9a5a;
+		color: white;
+	}
 </style>

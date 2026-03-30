@@ -17,6 +17,10 @@ const loanSchema = new Schema(
       required: true,
       trim: true,
     },
+    returnedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
