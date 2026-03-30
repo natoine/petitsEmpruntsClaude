@@ -1,0 +1,15 @@
+*, *::before, *::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+html {
+	font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+	scroll-behavior: smooth;
+}
+
+body {
+	background-color: #fdf6ee;
+	color: #2d2d2d;
+}
