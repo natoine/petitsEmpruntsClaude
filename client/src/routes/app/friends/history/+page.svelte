@@ -1,33 +1,52 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { auth } from '$lib/auth.js';
 	import { api } from '$lib/api.js';
 
 	let session = null;
-	let friends = [];
+	let friendDisplayName = '';
+	let events = [];
 	let loading = true;
+
+	const ACTION = {
+		loaned:        { label: 'Vous avez prêté',   icon: '📤', color: 'orange' },
+		borrowed:      { label: 'Vous avez emprunté', icon: '📥', color: 'blue'   },
+		they_returned: { label: 'vous a rendu',        icon: '✅', color: 'green'  },
+		i_returned:    { label: 'Vous avez rendu',     icon: '✅', color: 'green'  },
+	};
 
 	onMount(async () => {
 		const unsubscribe = auth.subscribe((s) => (session = s));
 		if (!session) { goto('/login'); return unsubscribe; }
 
-		const res = await api.get('/friends');
-		if (res.ok) friends = res.data;
+		const params = $page.url.searchParams;
+		const q = new URLSearchParams();
+		if (params.get('friendUserId')) q.set('friendUserId', params.get('friendUserId'));
+		else if (params.get('friendEmail')) q.set('friendEmail', params.get('friendEmail'));
+		else if (params.get('friendName'))  q.set('friendName',  params.get('friendName'));
+
+		const res = await api.get(`/friends/history?${q}`);
+		if (res.ok) {
+			friendDisplayName = res.data.friendDisplayName;
+			events = res.data.events;
+		}
 		loading = false;
 
 		return unsubscribe;
 	});
 
+	function formatDateTime(iso) {
+		return new Date(iso).toLocaleString('fr-FR', {
+			day: '2-digit', month: '2-digit', year: 'numeric',
+			hour: '2-digit', minute: '2-digit',
+		});
+	}
+
 	function handleLogout() {
 		auth.logout();
 		goto('/');
-	}
-
-	function friendHistoryUrl(f) {
-		if (f.userId) return `/app/friends/history?friendUserId=${encodeURIComponent(f.userId)}`;
-		if (f.email)  return `/app/friends/history?friendEmail=${encodeURIComponent(f.email)}`;
-		return `/app/friends/history?friendName=${encodeURIComponent(f.name)}`;
 	}
 </script>
 
@@ -36,8 +55,10 @@
 	<header class="topbar">
 		<div class="topbar-inner">
 			<div class="topbar-left">
-				<a href="/app" class="back-link">← Mes prêts</a>
-				<span class="page-title">Mes amis</span>
+				<a href="/app/friends" class="back-link">← Mes amis</a>
+				{#if friendDisplayName}
+					<span class="page-title">Historique avec {friendDisplayName}</span>
+				{/if}
 			</div>
 			<div class="user-area">
 				<a href="/app/profile" class="user-link">{session.username || session.email}</a>
@@ -49,38 +70,38 @@
 	<main class="main">
 		{#if loading}
 			<p class="empty">Chargement…</p>
-		{:else if friends.length === 0}
+		{:else if events.length === 0}
 			<div class="card">
-				<p class="empty">Aucun ami pour l'instant. Enregistrez un prêt ou un emprunt pour voir apparaître vos contacts ici.</p>
+				<p class="empty">Aucun historique avec cet ami.</p>
 			</div>
 		{:else}
 			<div class="card">
-				<div class="table-wrapper">
-					<table>
-						<thead>
+				<table>
+					<thead>
+						<tr>
+							<th>Date &amp; heure</th>
+							<th>Action</th>
+							<th>Quoi</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each events as ev}
+							{@const a = ACTION[ev.type]}
 							<tr>
-								<th>Nom / Pseudo</th>
-								<th>Email</th>
-								<th class="num" title="Prêts en cours">📤 en cours</th>
-								<th class="num" title="Emprunts en cours">📥 en cours</th>
-								<th class="num" title="Prêts terminés">📤 terminés</th>
-								<th class="num" title="Emprunts terminés">📥 terminés</th>
+								<td class="date">{formatDateTime(ev.date)}</td>
+								<td class="action action-{a.color}">
+									<span class="icon">{a.icon}</span>
+									{#if ev.type === 'they_returned'}
+										<span><strong>{friendDisplayName}</strong> {a.label}</span>
+									{:else}
+										<span>{a.label}</span>
+									{/if}
+								</td>
+								<td class="what">{ev.what}</td>
 							</tr>
-						</thead>
-						<tbody>
-							{#each friends as f}
-								<tr class="clickable" on:click={() => goto(friendHistoryUrl(f))}>
-									<td class="name">{f.name}</td>
-									<td class="email">{f.email ?? '—'}</td>
-									<td class="num">{#if f.loansActive > 0}<span class="pill pill-active">{f.loansActive}</span>{:else}<span class="zero">0</span>{/if}</td>
-									<td class="num">{#if f.borrowsActive > 0}<span class="pill pill-active">{f.borrowsActive}</span>{:else}<span class="zero">0</span>{/if}</td>
-									<td class="num">{#if f.loansDone > 0}<span class="pill pill-done">{f.loansDone}</span>{:else}<span class="zero">0</span>{/if}</td>
-									<td class="num">{#if f.borrowsDone > 0}<span class="pill pill-done">{f.borrowsDone}</span>{:else}<span class="zero">0</span>{/if}</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
+						{/each}
+					</tbody>
+				</table>
 			</div>
 		{/if}
 	</main>
@@ -103,7 +124,7 @@
 	}
 
 	.topbar-inner {
-		max-width: 960px;
+		max-width: 800px;
 		margin: 0 auto;
 		padding: 0.75rem 2rem;
 		display: flex;
@@ -165,7 +186,7 @@
 
 	/* ── Main ── */
 	.main {
-		max-width: 960px;
+		max-width: 800px;
 		margin: 2.5rem auto;
 		padding: 0 1.5rem;
 	}
@@ -175,16 +196,12 @@
 		border-radius: 16px;
 		padding: 1.75rem 2rem;
 		box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+		overflow-x: auto;
 	}
 
-	.empty {
-		color: #aaa;
-		font-size: 0.95rem;
-	}
+	.empty { color: #aaa; font-size: 0.95rem; }
 
 	/* ── Table ── */
-	.table-wrapper { overflow-x: auto; }
-
 	table {
 		width: 100%;
 		border-collapse: collapse;
@@ -203,8 +220,6 @@
 		white-space: nowrap;
 	}
 
-	thead th.num { text-align: center; }
-
 	tbody tr:hover { background: #fdf6ee; }
 
 	tbody td {
@@ -215,36 +230,26 @@
 
 	tbody tr:last-child td { border-bottom: none; }
 
-	td.name  { font-weight: 600; color: #1a1a1a; }
-	td.email { color: #aaa; font-size: 0.85rem; }
-	td.num   { text-align: center; }
-
-	.pill {
-		display: inline-block;
-		min-width: 1.6rem;
-		padding: 0.15rem 0.5rem;
-		border-radius: 20px;
-		font-size: 0.8rem;
-		font-weight: 700;
-		text-align: center;
-	}
-
-	.pill-active {
-		background: #fff0e0;
-		color: #e87722;
-	}
-
-	.pill-done {
-		background: #f0f0f0;
-		color: #999;
-	}
-
-	tbody tr.clickable {
-		cursor: pointer;
-	}
-
-	.zero {
-		color: #ddd;
+	td.date {
+		white-space: nowrap;
+		color: #aaa;
 		font-size: 0.85rem;
+		width: 160px;
 	}
+
+	td.action {
+		white-space: nowrap;
+		font-weight: 600;
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	td.action .icon { font-size: 1rem; }
+
+	td.action-orange { color: #e87722; }
+	td.action-blue   { color: #4a6a9a; }
+	td.action-green  { color: #4a9a5a; }
+
+	td.what { color: #333; }
 </style>
