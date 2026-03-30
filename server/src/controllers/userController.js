@@ -2,6 +2,29 @@ import bcrypt from 'bcrypt';
 import User from '../models/User.js';
 import Loan from '../models/Loan.js';
 
+export async function searchUsers(req, res) {
+  const q = req.query.q?.trim();
+  if (!q || q.length < 2) {
+    return res.status(200).json({ data: [], error: null, message: null });
+  }
+
+  const regex = new RegExp(q, 'i');
+  const users = await User.find(
+    {
+      _id: { $ne: req.user.userId },
+      isVerified: true,
+      $or: [{ email: regex }, { username: regex }],
+    },
+    'email username'
+  ).limit(8);
+
+  return res.status(200).json({
+    data: users.map((u) => ({ email: u.email, username: u.username || null, display: u.username || u.email })),
+    error: null,
+    message: null,
+  });
+}
+
 export async function getMe(req, res) {
   const user = await User.findById(req.user.userId, 'email username');
 

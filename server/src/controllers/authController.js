@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import Loan from '../models/Loan.js';
 import { sendVerificationEmail } from '../services/email.js';
 
 export async function register(req, res) {
@@ -64,6 +65,12 @@ export async function verifyEmail(req, res) {
   user.verificationToken = null;
   user.verificationTokenExpiresAt = null;
   await user.save();
+
+  // Rattacher rétroactivement les prêts/emprunts qui ciblaient cet email
+  await Loan.updateMany(
+    { counterpartEmail: user.email, counterpartUserId: null },
+    { $set: { counterpartUserId: user._id } }
+  );
 
   return res.status(200).json({
     data: null,

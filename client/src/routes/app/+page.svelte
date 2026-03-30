@@ -14,6 +14,38 @@
 	let submitting = false;
 	let errorMessage = '';
 
+	// Autocomplete
+	let suggestions = [];
+	let showSuggestions = false;
+	let searchTimer = null;
+
+	async function onCounterpartInput() {
+		clearTimeout(searchTimer);
+		const val = counterpart.trim();
+		if (val.length < 2) { suggestions = []; showSuggestions = false; return; }
+		searchTimer = setTimeout(async () => {
+			const res = await api.get(`/users/search?q=${encodeURIComponent(val)}`);
+			if (res.ok && res.data.length > 0) {
+				suggestions = res.data;
+				showSuggestions = true;
+			} else {
+				suggestions = [];
+				showSuggestions = false;
+			}
+		}, 200);
+	}
+
+	function selectSuggestion(s) {
+		counterpart = s.email; // on envoie l'email au serveur pour la résolution
+		showSuggestions = false;
+		suggestions = [];
+	}
+
+	function closeSuggestions() {
+		// petit délai pour laisser le clic sur suggestion se déclencher
+		setTimeout(() => { showSuggestions = false; }, 150);
+	}
+
 	// Tableau
 	let tableTab = 'loans-active'; // 'loans-active' | 'loans-done' | 'borrows-active' | 'borrows-done'
 
@@ -94,17 +126,37 @@
 			</div>
 
 			<form class="loan-form" on:submit|preventDefault={handleSubmit}>
-				{#if formTab === 'loan'}
-					<span class="form-label">J'ai prêté</span>
-					<input type="text" bind:value={what} placeholder="quoi (ex : tome 3 de Thorgal)" required maxlength="200" />
-					<span class="form-label">à</span>
-					<input type="text" bind:value={counterpart} placeholder="qui (ex : Marie)" required maxlength="100" />
-				{:else}
-					<span class="form-label">J'emprunte</span>
-					<input type="text" bind:value={what} placeholder="quoi (ex : perceuse)" required maxlength="200" />
-					<span class="form-label">à</span>
-					<input type="text" bind:value={counterpart} placeholder="qui (ex : Lucas)" required maxlength="100" />
-				{/if}
+				<span class="form-label">{formTab === 'loan' ? 'J\'ai prêté' : 'J\'emprunte'}</span>
+				<input type="text" bind:value={what}
+					placeholder={formTab === 'loan' ? 'quoi (ex : tome 3 de Thorgal)' : 'quoi (ex : perceuse)'}
+					required maxlength="200" />
+				<span class="form-label">à</span>
+				<div class="autocomplete-wrap">
+					<input
+						type="text"
+						bind:value={counterpart}
+						on:input={onCounterpartInput}
+						on:blur={closeSuggestions}
+						placeholder="email, pseudo ou nom (ex : papa)"
+						required
+						maxlength="200"
+						autocomplete="off"
+					/>
+					{#if showSuggestions}
+						<ul class="suggestions">
+							{#each suggestions as s}
+								<li on:mousedown={() => selectSuggestion(s)}>
+									{#if s.username}
+										<span class="s-name">{s.username}</span>
+										<span class="s-email">{s.email}</span>
+									{:else}
+										<span class="s-name">{s.email}</span>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
 				<button type="submit" class="btn-primary" disabled={submitting}>
 					{submitting ? '…' : 'Enregistrer'}
 				</button>
@@ -365,6 +417,44 @@
 		font-weight: 500;
 		white-space: nowrap;
 	}
+
+	.autocomplete-wrap {
+		position: relative;
+		flex: 1;
+		min-width: 140px;
+	}
+
+	.autocomplete-wrap input {
+		width: 100%;
+	}
+
+	.suggestions {
+		position: absolute;
+		top: calc(100% + 4px);
+		left: 0;
+		right: 0;
+		background: white;
+		border: 2px solid #e87722;
+		border-radius: 10px;
+		list-style: none;
+		z-index: 50;
+		overflow: hidden;
+		box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+	}
+
+	.suggestions li {
+		padding: 0.6rem 0.9rem;
+		cursor: pointer;
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		transition: background 0.1s;
+	}
+
+	.suggestions li:hover { background: #fdf6ee; }
+
+	.s-name { font-weight: 600; color: #1a1a1a; font-size: 0.9rem; }
+	.s-email { color: #aaa; font-size: 0.8rem; }
 
 	.loan-form input {
 		flex: 1;

@@ -17,12 +17,22 @@ const loanSchema = new Schema(
       required: true,
       trim: true,
     },
-    // Pour kind='loan' : à qui on a prêté
-    // Pour kind='borrow' : à qui on a emprunté
+    // Texte affiché dans les tableaux : username, email ou nom libre
     counterpart: {
       type: String,
       required: true,
       trim: true,
+    },
+    // Renseigné si la contrepartie a un compte (résolu au moment de la création)
+    counterpartUserId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    // Renseigné si un email a été saisi (compte existant ou non)
+    counterpartEmail: {
+      type: String,
+      default: null,
     },
     returnedAt: {
       type: Date,
