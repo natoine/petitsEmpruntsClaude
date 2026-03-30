@@ -1,36 +1,45 @@
 import Loan from '../models/Loan.js';
 
 export async function createLoan(req, res) {
-  const { what, to } = req.body;
+  const { kind, what, counterpart } = req.body;
 
-  if (!what?.trim() || !to?.trim()) {
+  if (!['loan', 'borrow'].includes(kind)) {
+    return res.status(400).json({ data: null, error: 'INVALID_KIND', message: 'Le type doit être "loan" ou "borrow".' });
+  }
+
+  if (!what?.trim() || !counterpart?.trim()) {
     return res.status(400).json({ data: null, error: 'MISSING_FIELDS', message: 'Veuillez renseigner quoi et à qui.' });
   }
 
-  const loan = await Loan.create({ lender: req.user.userId, what: what.trim(), to: to.trim() });
+  const entry = await Loan.create({
+    owner: req.user.userId,
+    kind,
+    what: what.trim(),
+    counterpart: counterpart.trim(),
+  });
 
-  return res.status(201).json({ data: loan, error: null, message: 'Prêt enregistré.' });
+  return res.status(201).json({ data: entry, error: null, message: 'Enregistré.' });
 }
 
 export async function getLoans(req, res) {
-  const loans = await Loan.find({ lender: req.user.userId }).sort({ createdAt: -1 });
+  const entries = await Loan.find({ owner: req.user.userId }).sort({ createdAt: -1 });
 
-  return res.status(200).json({ data: loans, error: null, message: null });
+  return res.status(200).json({ data: entries, error: null, message: null });
 }
 
 export async function returnLoan(req, res) {
-  const loan = await Loan.findOne({ _id: req.params.id, lender: req.user.userId });
+  const entry = await Loan.findOne({ _id: req.params.id, owner: req.user.userId });
 
-  if (!loan) {
-    return res.status(404).json({ data: null, error: 'NOT_FOUND', message: 'Prêt introuvable.' });
+  if (!entry) {
+    return res.status(404).json({ data: null, error: 'NOT_FOUND', message: 'Entrée introuvable.' });
   }
 
-  if (loan.returnedAt) {
-    return res.status(409).json({ data: null, error: 'ALREADY_RETURNED', message: 'Ce prêt est déjà marqué comme rendu.' });
+  if (entry.returnedAt) {
+    return res.status(409).json({ data: null, error: 'ALREADY_RETURNED', message: 'Déjà marqué comme terminé.' });
   }
 
-  loan.returnedAt = new Date();
-  await loan.save();
+  entry.returnedAt = new Date();
+  await entry.save();
 
-  return res.status(200).json({ data: loan, error: null, message: 'Prêt marqué comme rendu.' });
+  return res.status(200).json({ data: entry, error: null, message: 'Marqué comme terminé.' });
 }

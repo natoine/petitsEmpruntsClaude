@@ -2,9 +2,14 @@ import { Schema, model } from 'mongoose';
 
 const loanSchema = new Schema(
   {
-    lender: {
+    owner: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+      required: true,
+    },
+    kind: {
+      type: String,
+      enum: ['loan', 'borrow'],
       required: true,
     },
     what: {
@@ -12,7 +17,9 @@ const loanSchema = new Schema(
       required: true,
       trim: true,
     },
-    to: {
+    // Pour kind='loan' : à qui on a prêté
+    // Pour kind='borrow' : à qui on a emprunté
+    counterpart: {
       type: String,
       required: true,
       trim: true,
