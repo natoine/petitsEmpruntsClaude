@@ -1,9 +1,24 @@
+import { browser } from '$app/environment';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
 
+function getToken() {
+  if (!browser) return null;
+  try {
+    return JSON.parse(localStorage.getItem('pea_session'))?.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function request(method, path, body) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const json = await res.json();
