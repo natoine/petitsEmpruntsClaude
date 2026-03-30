@@ -97,7 +97,7 @@ export async function deleteAccount(req, res) {
     return res.status(401).json({ data: null, error: 'WRONG_PASSWORD', message: 'Mot de passe incorrect.' });
   }
 
-  await Loan.deleteMany({ owner: req.user.userId });
+  await Loan.deleteMany({ createdBy: req.user.userId });
   await user.deleteOne();
 
   return res.status(200).json({ data: null, error: null, message: 'Compte supprimé.' });

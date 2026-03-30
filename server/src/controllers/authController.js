@@ -68,8 +68,12 @@ export async function verifyEmail(req, res) {
 
   // Rattacher rétroactivement les prêts/emprunts qui ciblaient cet email
   await Loan.updateMany(
-    { counterpartEmail: user.email, counterpartUserId: null },
-    { $set: { counterpartUserId: user._id } }
+    { 'lender.email': user.email, 'lender.userId': null },
+    { $set: { 'lender.userId': user._id } }
+  );
+  await Loan.updateMany(
+    { 'borrower.email': user.email, 'borrower.userId': null },
+    { $set: { 'borrower.userId': user._id } }
   );
 
   return res.status(200).json({

@@ -4,150 +4,146 @@ import { sendLoanNotification, sendLoanInvitation } from '../services/email.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+async function resolveParty(input) {
+  const raw = input.trim();
+
+  if (!EMAIL_RE.test(raw)) {
+    return { userId: null, email: null, name: raw };
+  }
+
+  const email = raw.toLowerCase();
+  const found = await User.findOne({ email, isVerified: true }, 'email username');
+
+  if (found) {
+    return { userId: found._id, email: found.email, name: found.username || found.email };
+  }
+
+  return { userId: null, email, name: email };
+}
+
+// Résout le nom affiché d'une partie depuis la base (au moment de la lecture)
+async function resolveCurrentName(party) {
+  if (!party.userId && !party.email) return party.name;
+  const user = await User.findOne(
+    party.userId ? { _id: party.userId } : { email: party.email, isVerified: true },
+    'email username'
+  );
+  return user ? (user.username || user.email) : party.name;
+}
+
+// Construit la vue d'une entrée du point de vue d'un utilisateur donné.
+// Utilise createdBy + kind (du créateur) pour dériver la perspective — pas de comparaison d'ObjectId fragile.
+function formatForUser(doc, userId) {
+  const amCreator = doc.createdBy.toString() === userId.toString();
+  const effectiveKind = amCreator ? doc.kind : (doc.kind === 'loan' ? 'borrow' : 'loan');
+
+  // Si le créateur a prêté (loan), la contrepartie est l'emprunteur, et vice-versa.
+  // Du point de vue de la contrepartie, c'est l'inverse.
+  const counterpart = amCreator
+    ? (doc.kind === 'loan' ? doc.borrower.name : doc.lender.name)
+    : (doc.kind === 'loan' ? doc.lender.name  : doc.borrower.name);
+
+  return {
+    _id: doc._id,
+    what: doc.what,
+    kind: effectiveKind,
+    counterpart,
+    returnedAt: doc.returnedAt,
+    createdAt: doc.createdAt,
+  };
+}
+
 export async function createLoan(req, res) {
   const { kind, what, counterpart } = req.body;
 
   if (!['loan', 'borrow'].includes(kind)) {
     return res.status(400).json({ data: null, error: 'INVALID_KIND', message: 'Le type doit être "loan" ou "borrow".' });
   }
-
   if (!what?.trim() || !counterpart?.trim()) {
     return res.status(400).json({ data: null, error: 'MISSING_FIELDS', message: 'Veuillez renseigner quoi et à qui.' });
   }
 
-  const owner = await User.findById(req.user.userId, 'email username');
-  const ownerName = owner.username || owner.email;
+  const me = await User.findById(req.user.userId, 'email username');
+  const myParty = { userId: me._id, email: me.email, name: me.username || me.email };
+  const otherParty = await resolveParty(counterpart);
 
-  const rawCounterpart = counterpart.trim();
-  let displayName = rawCounterpart;
-  let counterpartUserId = null;
-  let counterpartEmail = null;
+  const lender   = kind === 'loan'   ? myParty : otherParty;
+  const borrower = kind === 'borrow' ? myParty : otherParty;
 
-  if (EMAIL_RE.test(rawCounterpart)) {
-    counterpartEmail = rawCounterpart.toLowerCase();
-    const match = await User.findOne({ email: counterpartEmail, isVerified: true }, 'email username');
+  const loan = await Loan.create({ what: what.trim(), lender, borrower, createdBy: me._id, kind });
 
-    if (match) {
-      counterpartUserId = match._id;
-      displayName = match.username || match.email;
-      sendLoanNotification({ to: match.email, ownerName, kind, what: what.trim() }).catch(console.error);
+  if (otherParty.email) {
+    const ownerName = myParty.name;
+    if (otherParty.userId) {
+      sendLoanNotification({ to: otherParty.email, ownerName, kind, what: what.trim() }).catch(console.error);
     } else {
-      sendLoanInvitation({ to: counterpartEmail, ownerName, kind, what: what.trim() }).catch(console.error);
+      sendLoanInvitation({ to: otherParty.email, ownerName, kind, what: what.trim() }).catch(console.error);
     }
   }
 
-  const entry = await Loan.create({
-    owner: req.user.userId,
-    kind,
-    what: what.trim(),
-    counterpart: displayName,
-    counterpartUserId,
-    counterpartEmail,
+  return res.status(201).json({
+    data: formatForUser(loan.toObject(), me._id.toString()),
+    error: null,
+    message: 'Enregistré.',
   });
-
-  return res.status(201).json({ data: entry, error: null, message: 'Enregistré.' });
 }
 
 export async function getLoans(req, res) {
   const userId = req.user.userId;
+  const me = await User.findById(userId, 'email');
 
-  // Entrées dont l'utilisateur est l'auteur
-  const ownEntries = await Loan.find({ owner: userId })
-    .populate('owner', 'email username')
-    .populate('counterpartUserId', 'email username')
-    .sort({ createdAt: -1 });
+  const loans = await Loan.find({
+    $or: [
+      { 'lender.userId':   userId },
+      { 'borrower.userId': userId },
+      { 'lender.email':   me.email },
+      { 'borrower.email': me.email },
+    ],
+  }).sort({ createdAt: -1 });
 
-  // Entrées dont l'utilisateur est la contrepartie (par userId ou par email)
-  const currentUser = await User.findById(userId, 'email');
-  const reciprocalEntries = await Loan.find({
-    owner: { $ne: userId },
-    $or: [{ counterpartUserId: userId }, { counterpartEmail: currentUser.email }],
-  })
-    .populate('owner', 'email username')
-    .sort({ createdAt: -1 });
+  const formatted = await Promise.all(
+    loans.map(async (loan) => {
+      const doc = loan.toObject();
+      doc.lender.name   = await resolveCurrentName(doc.lender);
+      doc.borrower.name = await resolveCurrentName(doc.borrower);
+      return formatForUser(doc, userId);
+    })
+  );
 
-  // Résoudre les noms des contreparties identifiées par email sans userId (vieux prêts)
-  const unmatchedEmails = ownEntries
-    .filter((e) => !e.counterpartUserId && e.counterpartEmail)
-    .map((e) => e.counterpartEmail);
-
-  const usersByEmail = unmatchedEmails.length
-    ? await User.find({ email: { $in: unmatchedEmails }, isVerified: true }, 'email username')
-    : [];
-  const emailToUser = Object.fromEntries(usersByEmail.map((u) => [u.email, u]));
-
-  const format = (entry, asReciprocal) => {
-    const doc = entry.toObject();
-    if (!asReciprocal) {
-      if (entry.counterpartUserId) {
-        doc.counterpart = entry.counterpartUserId.username || entry.counterpartUserId.email;
-      } else if (entry.counterpartEmail && emailToUser[entry.counterpartEmail]) {
-        doc.counterpart = emailToUser[entry.counterpartEmail].username || entry.counterpartEmail;
-      }
-      return doc;
-    }
-
-    // Du point de vue de la contrepartie, on inverse le kind et la personne affichée
-    const ownerUser = entry.owner;
-    return {
-      ...doc,
-      kind: doc.kind === 'loan' ? 'borrow' : 'loan',
-      counterpart: ownerUser.username || ownerUser.email,
-      _reciprocal: true,
-    };
-  };
-
-  const all = [
-    ...ownEntries.map((e) => format(e, false)),
-    ...reciprocalEntries.map((e) => format(e, true)),
-  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  return res.status(200).json({ data: all, error: null, message: null });
+  return res.status(200).json({ data: formatted, error: null, message: null });
 }
 
 export async function returnLoan(req, res) {
   const userId = req.user.userId;
+  const me = await User.findById(userId, 'email');
 
-  // Autorise aussi bien l'auteur que la contrepartie à marquer comme terminé
-  const entry = await Loan.findOne({
+  const loan = await Loan.findOne({
     _id: req.params.id,
-    $or: [{ owner: userId }, { counterpartUserId: userId }],
+    $or: [
+      { 'lender.userId':   userId },
+      { 'borrower.userId': userId },
+      { 'lender.email':   me.email },
+      { 'borrower.email': me.email },
+    ],
   });
 
-  if (!entry) {
+  if (!loan) {
     return res.status(404).json({ data: null, error: 'NOT_FOUND', message: 'Entrée introuvable.' });
   }
-
-  if (entry.returnedAt) {
+  if (loan.returnedAt) {
     return res.status(409).json({ data: null, error: 'ALREADY_RETURNED', message: 'Déjà marqué comme terminé.' });
   }
 
-  entry.returnedAt = new Date();
-  await entry.save();
+  loan.returnedAt = new Date();
+  await loan.save();
 
-  const isReciprocal = entry.owner.toString() !== userId.toString();
+  const doc = loan.toObject();
+  doc.lender.name   = await resolveCurrentName(doc.lender);
+  doc.borrower.name = await resolveCurrentName(doc.borrower);
 
-  if (isReciprocal) {
-    const ownerUser = await User.findById(entry.owner, 'email username');
-    return res.status(200).json({
-      data: {
-        ...entry.toObject(),
-        kind: entry.kind === 'loan' ? 'borrow' : 'loan',
-        counterpart: ownerUser.username || ownerUser.email,
-        _reciprocal: true,
-      },
-      error: null,
-      message: 'Marqué comme terminé.',
-    });
-  }
-
-  // Résoudre le nom de la contrepartie depuis son profil courant
-  if (entry.counterpartUserId) {
-    const cpUser = await User.findById(entry.counterpartUserId, 'email username');
-    const doc = entry.toObject();
-    doc.counterpart = cpUser.username || cpUser.email;
-    return res.status(200).json({ data: doc, error: null, message: 'Marqué comme terminé.' });
-  }
-
-  return res.status(200).json({ data: entry, error: null, message: 'Marqué comme terminé.' });
+  return res.status(200).json({
+    data: formatForUser(doc, userId),
+    error: null,
+    message: 'Marqué comme terminé.',
+  });
 }

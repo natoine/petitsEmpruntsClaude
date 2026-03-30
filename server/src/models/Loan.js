@@ -1,43 +1,23 @@
 import { Schema, model } from 'mongoose';
 
+const partySchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    email:  { type: String, default: null },
+    name:   { type: String, required: true, trim: true },
+  },
+  { _id: false }
+);
+
 const loanSchema = new Schema(
   {
-    owner: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    kind: {
-      type: String,
-      enum: ['loan', 'borrow'],
-      required: true,
-    },
-    what: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    // Texte affiché dans les tableaux : username, email ou nom libre
-    counterpart: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    // Renseigné si la contrepartie a un compte (résolu au moment de la création)
-    counterpartUserId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
-    // Renseigné si un email a été saisi (compte existant ou non)
-    counterpartEmail: {
-      type: String,
-      default: null,
-    },
-    returnedAt: {
-      type: Date,
-      default: null,
-    },
+    what:     { type: String, required: true, trim: true },
+    lender:   { type: partySchema, required: true },
+    borrower: { type: partySchema, required: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    // kind du point de vue du créateur : 'loan' = il a prêté, 'borrow' = il a emprunté
+    kind: { type: String, enum: ['loan', 'borrow'], required: true },
+    returnedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
