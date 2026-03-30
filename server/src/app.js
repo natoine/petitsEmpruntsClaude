@@ -7,6 +7,7 @@ import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
 import loansRouter from './routes/loans.js';
 import userRouter from './routes/user.js';
+import friendsRouter from './routes/friends.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +20,7 @@ app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/loans', loansRouter);
 app.use('/api/v1/users', userRouter);
+app.use('/api/v1/friends', friendsRouter);
 
 const start = async () => {
   await mongoose.connect(MONGO_URL);

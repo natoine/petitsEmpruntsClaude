@@ -105,6 +105,7 @@
 				<span class="logo-text">PETITS EMPRUNTS<br />ENTRE AMIS</span>
 			</a>
 			<div class="user-area">
+				<a href="/app/friends" class="nav-link">Mes amis</a>
 				<a href="/app/profile" class="user-link">{session.username || session.email}</a>
 				<button class="btn-logout" on:click={handleLogout}>Se déconnecter</button>
 			</div>
@@ -327,6 +328,16 @@
 		align-items: center;
 		gap: 1rem;
 	}
+
+	.nav-link {
+		font-size: 0.875rem;
+		color: #666;
+		text-decoration: none;
+		font-weight: 600;
+		transition: color 0.2s;
+	}
+
+	.nav-link:hover { color: #e87722; }
 
 	.user-link {
 		font-size: 0.875rem;
