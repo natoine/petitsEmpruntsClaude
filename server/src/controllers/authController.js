@@ -1,0 +1,72 @@
+import crypto from 'crypto';
+import bcrypt from 'bcrypt';
+import User from '../models/User.js';
+import { sendVerificationEmail } from '../services/email.js';
+
+export async function register(req, res) {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ data: null, error: 'MISSING_FIELDS', message: 'Email et mot de passe requis.' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ data: null, error: 'PASSWORD_TOO_SHORT', message: 'Le mot de passe doit contenir au moins 8 caractères.' });
+  }
+
+  const existing = await User.findOne({ email });
+  if (existing && existing.isVerified) {
+    return res.status(409).json({ data: null, error: 'EMAIL_TAKEN', message: 'Un compte existe déjà avec cet email.' });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  const verificationTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  if (existing && !existing.isVerified) {
+    // Resend verification to unverified account
+    existing.passwordHash = passwordHash;
+    existing.verificationToken = verificationToken;
+    existing.verificationTokenExpiresAt = verificationTokenExpiresAt;
+    await existing.save();
+  } else {
+    await User.create({ email, passwordHash, verificationToken, verificationTokenExpiresAt });
+  }
+
+  await sendVerificationEmail(email, verificationToken);
+
+  return res.status(201).json({
+    data: null,
+    error: null,
+    message: 'Compte créé. Vérifiez votre email pour activer votre compte.',
+  });
+}
+
+export async function verifyEmail(req, res) {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).json({ data: null, error: 'MISSING_TOKEN', message: 'Token manquant.' });
+  }
+
+  const user = await User.findOne({
+    verificationToken: token,
+    verificationTokenExpiresAt: { $gt: new Date() },
+    isVerified: false,
+  });
+
+  if (!user) {
+    return res.status(400).json({ data: null, error: 'INVALID_TOKEN', message: 'Lien invalide ou expiré.' });
+  }
+
+  user.isVerified = true;
+  user.verificationToken = null;
+  user.verificationTokenExpiresAt = null;
+  await user.save();
+
+  return res.status(200).json({
+    data: null,
+    error: null,
+    message: 'Email confirmé ! Vous pouvez maintenant vous connecter.',
+  });
+}
