@@ -27,7 +27,7 @@ app.use('/api/v1/users', userRouter);
 app.use('/api/v1/friends', friendsRouter);
 
 // Serve SvelteKit static build
-const clientBuild = join(__dirname, '../../../client/build');
+const clientBuild = join(__dirname, '../../client/build');
 app.use(express.static(clientBuild));
 app.get('*', (_req, res) => {
   res.sendFile(join(clientBuild, '200.html'));
