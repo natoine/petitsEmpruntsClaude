@@ -47,6 +47,25 @@ export async function sendVerificationEmail(email, token) {
   `, `\nLien : ${verifyUrl}`);
 }
 
+export async function sendPasswordResetEmail(email, token) {
+  const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const resetUrl = `${clientUrl}/reset-password?token=${token}`;
+
+  await send(email, 'Réinitialisation de votre mot de passe', `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem; color: #2d2d2d;">
+      <h2 style="color: #e87722;">Réinitialisation du mot de passe</h2>
+      <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous. Il expire dans <strong>1 heure</strong>.</p>
+      <a href="${resetUrl}"
+         style="display:inline-block; margin: 1.5rem 0; padding: 0.75rem 1.75rem;
+                background: #e87722; color: white; border-radius: 50px;
+                text-decoration: none; font-weight: 600;">
+        Réinitialiser mon mot de passe
+      </a>
+      <p style="color: #888; font-size: 0.875rem;">Si vous n'avez pas fait cette demande, ignorez cet email.</p>
+    </div>
+  `, `\nLien : ${resetUrl}`);
+}
+
 // Notifie un utilisateur existant qu'un prêt le concerne
 export async function sendLoanNotification({ to, ownerName, kind, what }) {
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';

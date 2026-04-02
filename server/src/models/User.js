@@ -30,6 +30,14 @@ const userSchema = new Schema(
       type: Date,
       default: null,
     },
+    resetToken: {
+      type: String,
+      default: null,
+    },
+    resetTokenExpiresAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

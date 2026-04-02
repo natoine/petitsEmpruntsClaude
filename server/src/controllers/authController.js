@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Loan from '../models/Loan.js';
-import { sendVerificationEmail } from '../services/email.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.js';
 
 export async function register(req, res) {
   const { email, password } = req.body;
@@ -81,6 +81,57 @@ export async function verifyEmail(req, res) {
     error: null,
     message: 'Email confirmé ! Vous pouvez maintenant vous connecter.',
   });
+}
+
+export async function forgotPassword(req, res) {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ data: null, error: 'MISSING_FIELDS', message: 'Email requis.' });
+  }
+
+  const user = await User.findOne({ email, isVerified: true });
+  // Réponse identique que l'utilisateur existe ou non (évite l'énumération d'emails)
+  if (user) {
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.resetToken = resetToken;
+    user.resetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 heure
+    await user.save();
+    await sendPasswordResetEmail(email, resetToken);
+  }
+
+  return res.status(200).json({
+    data: null,
+    error: null,
+    message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.',
+  });
+}
+
+export async function resetPassword(req, res) {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    return res.status(400).json({ data: null, error: 'MISSING_FIELDS', message: 'Token et mot de passe requis.' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ data: null, error: 'PASSWORD_TOO_SHORT', message: 'Le mot de passe doit contenir au moins 8 caractères.' });
+  }
+
+  const user = await User.findOne({
+    resetToken: token,
+    resetTokenExpiresAt: { $gt: new Date() },
+  });
+
+  if (!user) {
+    return res.status(400).json({ data: null, error: 'INVALID_TOKEN', message: 'Lien invalide ou expiré.' });
+  }
+
+  user.passwordHash = await bcrypt.hash(password, 12);
+  user.resetToken = null;
+  user.resetTokenExpiresAt = null;
+  await user.save();
+
+  return res.status(200).json({ data: null, error: null, message: 'Mot de passe réinitialisé.' });
 }
 
 export async function login(req, res) {

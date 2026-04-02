@@ -1,24 +1,19 @@
 <script>
-	import { goto } from '$app/navigation';
 	import { api } from '$lib/api.js';
-	import { auth } from '$lib/auth.js';
-	import PasswordInput from '$lib/PasswordInput.svelte';
 
 	let email = '';
-	let password = '';
-	let errorMessage = '';
 	let loading = false;
+	let sent = false;
+	let errorMessage = '';
 
 	async function handleSubmit() {
 		errorMessage = '';
 		loading = true;
-
-		const res = await api.post('/auth/login', { email, password });
+		const res = await api.post('/auth/forgot-password', { email });
 		loading = false;
 
 		if (res.ok) {
-			auth.login(res.data.token, res.data.email);
-			goto('/app');
+			sent = true;
 		} else {
 			errorMessage = res.message || 'Une erreur est survenue.';
 		}
@@ -27,47 +22,43 @@
 
 <div class="page">
 	<div class="card">
-		<a href="/" class="back-link">← Accueil</a>
+		<a href="/login" class="back-link">← Connexion</a>
 
 		<div class="logo">📚 💰 🚗</div>
-		<h1>Se connecter</h1>
-		<p class="subtitle">Content de vous revoir !</p>
+		<h1>Mot de passe oublié</h1>
 
-		<form on:submit|preventDefault={handleSubmit}>
-			<div class="field">
-				<label for="email">Adresse email</label>
-				<input
-					id="email"
-					type="email"
-					bind:value={email}
-					placeholder="toi@exemple.fr"
-					required
-					autocomplete="email"
-				/>
-			</div>
+		{#if sent}
+			<p class="success">
+				Si un compte existe avec cet email, vous recevrez un lien de réinitialisation dans quelques instants.
+			</p>
+			<a href="/login" class="btn-primary" style="display:block; text-align:center; text-decoration:none; margin-top:1rem;">
+				Retour à la connexion
+			</a>
+		{:else}
+			<p class="subtitle">Saisissez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.</p>
 
-			<div class="field">
-				<label for="password">Mot de passe</label>
-				<PasswordInput
-					id="password"
-					bind:value={password}
-					placeholder="Votre mot de passe"
-					required
-					autocomplete="current-password"
-				/>
-			</div>
+			<form on:submit|preventDefault={handleSubmit}>
+				<div class="field">
+					<label for="email">Adresse email</label>
+					<input
+						id="email"
+						type="email"
+						bind:value={email}
+						placeholder="toi@exemple.fr"
+						required
+						autocomplete="email"
+					/>
+				</div>
 
-			{#if errorMessage}
-				<p class="error">{errorMessage}</p>
-			{/if}
+				{#if errorMessage}
+					<p class="error">{errorMessage}</p>
+				{/if}
 
-			<button type="submit" class="btn-primary" disabled={loading}>
-				{loading ? 'Connexion…' : 'Se connecter'}
-			</button>
-		</form>
-
-		<p class="forgot-link"><a href="/forgot-password">Mot de passe oublié ?</a></p>
-		<p class="register-link">Pas encore de compte ? <a href="/register">S'inscrire gratuitement</a></p>
+				<button type="submit" class="btn-primary" disabled={loading}>
+					{loading ? 'Envoi en cours…' : 'Envoyer le lien'}
+				</button>
+			</form>
+		{/if}
 	</div>
 </div>
 
@@ -139,6 +130,7 @@
 		transition: border-color 0.2s;
 		outline: none;
 		background: #fdf6ee;
+		box-sizing: border-box;
 	}
 
 	input:focus {
@@ -156,6 +148,16 @@
 		margin-bottom: 1rem;
 	}
 
+	.success {
+		background: #f0faf2;
+		color: #2e7d45;
+		border: 1px solid #b8e6c4;
+		border-radius: 8px;
+		padding: 0.75rem 1rem;
+		font-size: 0.95rem;
+		line-height: 1.5;
+	}
+
 	.btn-primary {
 		width: 100%;
 		padding: 0.875rem;
@@ -171,37 +173,5 @@
 	}
 
 	.btn-primary:hover:not(:disabled) { background: #cf6618; }
-
-	.btn-primary:disabled {
-		opacity: 0.7;
-		cursor: not-allowed;
-	}
-
-	.register-link {
-		text-align: center;
-		margin-top: 1.5rem;
-		font-size: 0.9rem;
-		color: #666;
-	}
-
-	.register-link a {
-		color: #e87722;
-		font-weight: 600;
-		text-decoration: none;
-	}
-
-	.register-link a:hover { text-decoration: underline; }
-
-	.forgot-link {
-		text-align: center;
-		margin-top: 1rem;
-		font-size: 0.9rem;
-	}
-
-	.forgot-link a {
-		color: #aaa;
-		text-decoration: none;
-	}
-
-	.forgot-link a:hover { text-decoration: underline; }
+	.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 </style>
