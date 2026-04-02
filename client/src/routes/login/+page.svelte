@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api.js';
 	import { auth } from '$lib/auth.js';
+	import PasswordInput from '$lib/PasswordInput.svelte';
 
 	let email = '';
 	let password = '';
@@ -47,9 +48,8 @@
 
 			<div class="field">
 				<label for="password">Mot de passe</label>
-				<input
+				<PasswordInput
 					id="password"
-					type="password"
 					bind:value={password}
 					placeholder="Votre mot de passe"
 					required

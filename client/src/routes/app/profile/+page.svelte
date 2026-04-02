@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/auth.js';
 	import { api } from '$lib/api.js';
+	import PasswordInput from '$lib/PasswordInput.svelte';
 
 	let session = null;
 
@@ -129,15 +130,15 @@
 			<form on:submit|preventDefault={handleChangePassword}>
 				<div class="field">
 					<label for="current-pwd">Mot de passe actuel</label>
-					<input id="current-pwd" type="password" bind:value={currentPassword} required autocomplete="current-password" />
+					<PasswordInput id="current-pwd" bind:value={currentPassword} required autocomplete="current-password" />
 				</div>
 				<div class="field">
 					<label for="new-pwd">Nouveau mot de passe</label>
-					<input id="new-pwd" type="password" bind:value={newPassword} required minlength="8" placeholder="8 caractères minimum" autocomplete="new-password" />
+					<PasswordInput id="new-pwd" bind:value={newPassword} required minlength="8" placeholder="8 caractères minimum" autocomplete="new-password" />
 				</div>
 				<div class="field">
 					<label for="confirm-pwd">Confirmer le nouveau mot de passe</label>
-					<input id="confirm-pwd" type="password" bind:value={confirmNewPassword} required minlength="8" autocomplete="new-password" />
+					<PasswordInput id="confirm-pwd" bind:value={confirmNewPassword} required minlength="8" autocomplete="new-password" />
 				</div>
 				{#if passwordSuccess}<p class="success">{passwordSuccess}</p>{/if}
 				{#if passwordError}<p class="error">{passwordError}</p>{/if}
@@ -160,7 +161,7 @@
 				<form on:submit|preventDefault={handleDeleteAccount}>
 					<div class="field">
 						<label for="delete-pwd">Confirmez avec votre mot de passe</label>
-						<input id="delete-pwd" type="password" bind:value={deletePassword} required autocomplete="current-password" />
+						<PasswordInput id="delete-pwd" bind:value={deletePassword} required autocomplete="current-password" />
 					</div>
 					{#if deleteError}<p class="error">{deleteError}</p>{/if}
 					<div class="danger-actions">
@@ -267,8 +268,7 @@
 		letter-spacing: 0.04em;
 	}
 
-	input[type="text"],
-	input[type="password"] {
+	input[type="text"] {
 		width: 100%;
 		padding: 0.65rem 0.9rem;
 		border: 2px solid #e8e0d8;

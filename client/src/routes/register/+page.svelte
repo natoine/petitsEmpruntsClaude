@@ -1,6 +1,7 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api.js';
+	import PasswordInput from '$lib/PasswordInput.svelte';
 
 	let email = '';
 	let password = '';
@@ -51,9 +52,8 @@
 
 			<div class="field">
 				<label for="password">Mot de passe</label>
-				<input
+				<PasswordInput
 					id="password"
-					type="password"
 					bind:value={password}
 					placeholder="8 caractères minimum"
 					minlength="8"
@@ -64,9 +64,8 @@
 
 			<div class="field">
 				<label for="confirm">Confirmer le mot de passe</label>
-				<input
+				<PasswordInput
 					id="confirm"
-					type="password"
 					bind:value={confirmPassword}
 					placeholder="Répétez votre mot de passe"
 					minlength="8"
