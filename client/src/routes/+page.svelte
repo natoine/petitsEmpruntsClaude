@@ -8,7 +8,7 @@
 		{
 			icon: '📅',
 			title: 'Souvenirs Garantis',
-			description: 'N\'oubliez jamais qui vous doit quoi et quand rendre vos objets'
+			description: 'N\'oubliez jamais ce que vous devez rendre à vos proches'
 		},
 		{
 			icon: '🛡️',
@@ -36,7 +36,6 @@
 		<nav class="nav-links">
 			<a href="#how">Comment ça marche ?</a>
 			<a href="#avantages">Avantages</a>
-			<a href="#blog">Blog</a>
 		</nav>
 		<div class="nav-actions">
 			<a href="/login" class="btn btn-outline">Se connecter</a>
@@ -48,10 +47,15 @@
 <!-- Hero -->
 <section class="hero">
 	<div class="hero-content">
-		<h1>Partagez plus, dépensez moins<br />avec Petits Emprunts Entre Amis.</h1>
+		<h1>
+			<span class="h1-accent">Parce que fabriquer moins commence par partager plus.</span><br />
+			Ce que tu possèdes peut servir à quelqu'un.<br />
+			Ce dont tu as besoin existe peut-être déjà.
+		</h1>
 		<p>
-			L'application simple et sécurisée pour prêter et emprunter tout ce que vous voulez
-			(BD, outils, voiture, argent…) à vos amis, sans oubli ni traces.
+			Petits Emprunts Entre Amis te permet de mutualiser ce que tu possèdes avec tes proches.
+			L'application simple pour prêter et emprunter tout ce que vous voulez
+			(BD, outils, voiture, argent…) à vos amis, sans oubli.
 		</p>
 		<div class="hero-actions">
 			<a href="/register" class="btn btn-primary btn-large">C'est gratuit, je m'inscris !</a>
@@ -260,6 +264,13 @@
 		line-height: 1.2;
 		color: #1a1a1a;
 		margin-bottom: 1.25rem;
+	}
+
+	.h1-accent {
+		font-size: 1.1rem;
+		font-weight: 600;
+		color: #e87722;
+		font-style: italic;
 	}
 
 	.hero-content p {

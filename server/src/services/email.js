@@ -111,7 +111,7 @@ export async function sendLoanInvitation({ to, ownerName, kind, what }) {
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem; color: #2d2d2d;">
       <h2 style="color: #e87722;">Petits Emprunts Entre Amis</h2>
       <p>${actionLine}</p>
-      <p>Créez un compte gratuit pour suivre vos prêts et emprunts, et ne plus jamais oublier qui vous doit quoi.</p>
+      <p>Créez un compte pour mieux partager avec vos proches et ne plus oublier de leur rendre ce qui compte pour eux.</p>
       <a href="${clientUrl}/register"
          style="display:inline-block; margin: 1.5rem 0; padding: 0.75rem 1.75rem;
                 background: #e87722; color: white; border-radius: 50px;
